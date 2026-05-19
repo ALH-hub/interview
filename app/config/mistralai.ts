@@ -60,28 +60,6 @@ function extractAssistantText(response: { outputs?: unknown[] }): string {
   return '';
 }
 
-function parseQuestions(rawText: string): string[] {
-  try {
-    const parsed = JSON.parse(rawText);
-    if (
-      Array.isArray(parsed) &&
-      parsed.every((item) => typeof item === 'string')
-    ) {
-      return parsed.slice(0, 3);
-    }
-  } catch {
-    // Fallback to line parsing if model returns non-JSON text.
-  }
-
-  return rawText
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/^\d+[.)]\s*/, '').replace(/^[-*]\s*/, ''))
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
 function normalizeJobTitle(jobTitle: string): string {
   const trimmed = jobTitle.trim();
   return trimmed || DEFAULT_JOB_TITLE;
@@ -119,7 +97,7 @@ async function mistralChat(
 
   const rawContent = extractAssistantText(response as { outputs?: unknown[] });
 
-  const parsedQuestions = parseQuestions(rawContent);
+  const parsedQuestions = rawContent ? JSON.parse(rawContent) : [];
   const questions =
     parsedQuestions.length === 3
       ? parsedQuestions
