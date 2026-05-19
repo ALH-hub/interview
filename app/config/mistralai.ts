@@ -21,7 +21,7 @@ export type InterviewQuestionsResult = {
 
 function normalizeJobTitle(jobTitle: string): string {
   const trimmed = jobTitle.trim();
-  return trimmed || DEFAULT_JOB_TITLE;
+  return jobTitle.trim() || DEFAULT_JOB_TITLE;
 }
 
 function getClient(): Mistral {
@@ -43,21 +43,14 @@ function buildPrompt(jobTitle: string): string {
   ].join(' ');
 }
 
-function fallbackQuestions(jobTitle: string): string[] {
-  return [
-    `What does success in the first 90 days look like for a ${jobTitle}?`,
-    `How do you prioritize work when several stakeholders need help at once in a ${jobTitle} role?`,
-    `Can you share an example of improving a process or outcome in a ${jobTitle} position?`,
-  ];
-}
-
 export default async function mistralChat(
   jobTitle: string,
 ): Promise<InterviewQuestionsResult> {
   const normalizedJobTitle = normalizeJobTitle(jobTitle);
   const client = getClient();
 
-  new Promise((resolve) => setTimeout(resolve, 100));
+  // Simulate delay
+  await new Promise((resolve) => setTimeout(resolve, 50));
 
   const response = await client.beta.conversations.start({
     inputs: [
@@ -67,7 +60,6 @@ export default async function mistralChat(
       },
     ] as any,
     model: 'mistral-medium-latest',
-    instructions: 'Return exactly 3 concise interview questions as JSON.',
     completionArgs,
     tools,
   });
@@ -127,6 +119,8 @@ export default async function mistralChat(
     questions:
       questions.length === 3
         ? questions
-        : fallbackQuestions(normalizedJobTitle),
+        : 'Unable to parse questions from AI response. The response may be malformed or not in the expected format.'.split(
+            '\n',
+          ),
   };
 }
