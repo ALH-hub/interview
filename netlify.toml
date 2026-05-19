@@ -2,8 +2,3 @@
   command = "pnpm build"
   publish = "build/client"
 
-
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/react-router"
-  status = 200
