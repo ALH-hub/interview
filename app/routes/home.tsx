@@ -18,13 +18,10 @@ export function meta({}: Route.MetaArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const rawJobTitle = String(formData.get('jobTitle') ?? '').trim();
+  let rawJobTitle = String(formData.get('jobTitle') ?? '').trim();
 
   if (!rawJobTitle) {
-    return data<ActionResult>(
-      { error: 'Please enter a job title. Try Customer Success Manager.' },
-      { status: 400 },
-    );
+    rawJobTitle = 'Customer Success Manager';
   }
 
   try {
