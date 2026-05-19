@@ -20,7 +20,6 @@ export type InterviewQuestionsResult = {
 };
 
 function normalizeJobTitle(jobTitle: string): string {
-  const trimmed = jobTitle.trim();
   return jobTitle.trim() || DEFAULT_JOB_TITLE;
 }
 
@@ -34,6 +33,7 @@ function getClient(): Mistral {
   return new Mistral({ apiKey });
 }
 
+// Build the prompt for the AI model based on the job title
 function buildPrompt(jobTitle: string): string {
   return [
     `Create interview questions for a ${jobTitle} role.`,
@@ -49,9 +49,7 @@ export default async function mistralChat(
   const normalizedJobTitle = normalizeJobTitle(jobTitle);
   const client = getClient();
 
-  // Simulate delay
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
+  // Start a conversation with the Mistral API
   const response = await client.beta.conversations.start({
     inputs: [
       {
@@ -64,6 +62,7 @@ export default async function mistralChat(
     tools,
   });
 
+  // Clean and parse the AI response to extract questions
   const output = response.outputs?.find(
     (item) =>
       item &&
@@ -114,6 +113,7 @@ export default async function mistralChat(
       .slice(0, 3);
   }
 
+  // Ensure we always return an array of 3 questions, even if parsing fails
   return {
     jobTitle: normalizedJobTitle,
     questions:
