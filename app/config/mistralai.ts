@@ -1,11 +1,10 @@
 import { Mistral } from '@mistralai/mistralai';
 import dotenv from 'dotenv';
 
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
-const client = new Mistral({
-  apiKey: process.env.MISTRAL_API_KEY,
-});
+const DEFAULT_JOB_TITLE = 'Customer Success Manager';
 
 const completionArgs = {
   temperature: 0.7,
@@ -15,104 +14,119 @@ const completionArgs = {
 
 const tools: never[] = [];
 
-const DEFAULT_JOB_TITLE = 'Customer Success Manager';
-
 export type InterviewQuestionsResult = {
   jobTitle: string;
   questions: string[];
 };
-
-function extractAssistantText(response: { outputs?: unknown[] }): string {
-  if (!Array.isArray(response.outputs)) {
-    return '';
-  }
-
-  for (const output of response.outputs) {
-    if (!output || typeof output !== 'object') {
-      continue;
-    }
-
-    const outputEntry = output as {
-      type?: string;
-      content?: string | Array<{ type?: string; text?: string }>;
-    };
-
-    if (outputEntry.type !== 'message.output' || outputEntry.content == null) {
-      continue;
-    }
-
-    if (typeof outputEntry.content === 'string') {
-      return outputEntry.content;
-    }
-
-    const textParts = outputEntry.content
-      .filter(
-        (chunk) => chunk && typeof chunk === 'object' && chunk.type === 'text',
-      )
-      .map((chunk) => String(chunk.text ?? '').trim())
-      .filter(Boolean);
-
-    if (textParts.length > 0) {
-      return textParts.join('\n');
-    }
-  }
-
-  return '';
-}
 
 function normalizeJobTitle(jobTitle: string): string {
   const trimmed = jobTitle.trim();
   return trimmed || DEFAULT_JOB_TITLE;
 }
 
-async function mistralChat(
+function getClient(): Mistral {
+  const apiKey = process.env.MISTRAL_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('Missing MISTRAL_API_KEY. Add it to .env.local.');
+  }
+
+  return new Mistral({ apiKey });
+}
+
+function buildPrompt(jobTitle: string): string {
+  return [
+    `Create interview questions for a ${jobTitle} role.`,
+    'Return exactly 3 thoughtful interview questions.',
+    'Keep them concise and generic.',
+    'Return only valid JSON as an array of 3 strings.',
+  ].join(' ');
+}
+
+function fallbackQuestions(jobTitle: string): string[] {
+  return [
+    `What does success in the first 90 days look like for a ${jobTitle}?`,
+    `How do you prioritize work when several stakeholders need help at once in a ${jobTitle} role?`,
+    `Can you share an example of improving a process or outcome in a ${jobTitle} position?`,
+  ];
+}
+
+export default async function mistralChat(
   jobTitle: string,
 ): Promise<InterviewQuestionsResult> {
   const normalizedJobTitle = normalizeJobTitle(jobTitle);
+  const client = getClient();
 
-  const instructions = [
-    'You are an interview coach for generic job titles.',
-    `Use this title as the role focus: "${normalizedJobTitle}".`,
-    `If the title is empty or not generic, use "${DEFAULT_JOB_TITLE}" instead.`,
-    'Return exactly 3 thoughtful interview questions for that role.',
-    'Keep each question concise and specific to daily responsibilities of the role.',
-    'Do not add explanations, headers, or extra commentary.',
-    'Output must be valid JSON in this exact shape: ["question 1", "question 2", "question 3"].',
-  ].join(' ');
-
-  const messages = [
-    {
-      role: 'user' as const,
-      content: `Generate interview questions for the role: ${normalizedJobTitle}`,
-    },
-  ];
+  new Promise((resolve) => setTimeout(resolve, 100));
 
   const response = await client.beta.conversations.start({
-    inputs: messages as any,
+    inputs: [
+      {
+        role: 'user' as const,
+        content: buildPrompt(normalizedJobTitle),
+      },
+    ] as any,
     model: 'mistral-medium-latest',
-    instructions,
+    instructions: 'Return exactly 3 concise interview questions as JSON.',
     completionArgs,
     tools,
   });
 
-  const rawContent = extractAssistantText(response as { outputs?: unknown[] });
+  const output = response.outputs?.find(
+    (item) =>
+      item &&
+      typeof item === 'object' &&
+      (item as { type?: string }).type === 'message.output',
+  ) as
+    | { content?: string | Array<{ type?: string; text?: string }> }
+    | undefined;
 
-  const parsedQuestions = rawContent ? JSON.parse(rawContent) : [];
-  const questions =
-    parsedQuestions.length === 3
-      ? parsedQuestions
-      : [
-          `What does success in the first 90 days look like for a ${normalizedJobTitle}?`,
-          `How would you prioritize your work when multiple stakeholders need support at the same time in a ${normalizedJobTitle} role?`,
-          `Can you describe a situation where you improved a process or outcome relevant to a ${normalizedJobTitle} position?`,
-        ];
+  const rawText =
+    typeof output?.content === 'string'
+      ? output.content
+      : Array.isArray(output?.content)
+        ? output.content
+            .filter((chunk) => chunk?.type === 'text')
+            .map((chunk) => chunk.text?.trim() ?? '')
+            .filter(Boolean)
+            .join('\n')
+        : '';
 
-  console.log(questions);
+  const cleanedText = rawText
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/, '')
+    .trim();
+
+  let questions: string[] = [];
+
+  try {
+    const parsed = JSON.parse(cleanedText);
+    if (Array.isArray(parsed)) {
+      questions = parsed
+        .map((item) => String(item).trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    }
+  } catch {
+    questions = cleanedText
+      .split('\n')
+      .map((line) =>
+        line
+          .trim()
+          .replace(/^\d+[.)]\s*/, '')
+          .replace(/^[-*]\s*/, ''),
+      )
+      .filter(Boolean)
+      .slice(0, 3);
+  }
 
   return {
     jobTitle: normalizedJobTitle,
-    questions,
+    questions:
+      questions.length === 3
+        ? questions
+        : fallbackQuestions(normalizedJobTitle),
   };
 }
-
-export default mistralChat;

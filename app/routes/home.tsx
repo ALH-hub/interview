@@ -33,11 +33,26 @@ export async function action({ request }: Route.ActionArgs) {
       jobTitle: result.jobTitle,
       questions: result.questions,
     });
-  } catch {
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unable to generate interview questions right now. Please try again.';
+
+    if (message.includes('MISTRAL_API_KEY')) {
+      return data<ActionResult>(
+        {
+          error:
+            'Server configuration error: MISTRAL_API_KEY is missing. Add it in .env.local and restart the dev server.',
+        },
+        { status: 500 },
+      );
+    }
+
     return data<ActionResult>(
       {
         error:
-          'Unable to generate interview questions right now. Please try again.',
+          'Unable to generate interview questions right now. The AI response may be invalid or the API request failed.',
       },
       { status: 500 },
     );
