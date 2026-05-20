@@ -26,9 +26,8 @@ function normalizeJobTitle(jobTitle: string): string {
 function getClient(): Mistral {
   const apiKey = process.env.MISTRAL_API_KEY;
 
-  if (!apiKey) {
+  if (!apiKey)
     throw new Error('Missing MISTRAL_API_KEY. Add it to .env.local.');
-  }
 
   return new Mistral({ apiKey });
 }
