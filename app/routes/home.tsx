@@ -25,6 +25,7 @@ export async function action({ request }: Route.ActionArgs) {
     rawJobTitle = 'Customer Success Manager';
   }
 
+  // Call AI
   try {
     const result = await mistralChat(rawJobTitle);
     return data<ActionResult>({

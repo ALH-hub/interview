@@ -21,7 +21,6 @@ export function Welcome() {
           Enter a generic job title and get 3 thoughtful interview questions.
           Example: Customer Success Manager.
         </p>
-
         <Form method='post' className='mt-6 space-y-4'>
           <div>
             <label
@@ -47,13 +46,13 @@ export function Welcome() {
             {isSubmitting ? 'Generating...' : 'Generate Questions'}
           </button>
         </Form>
-
         {actionData?.error && (
           <p className='mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'>
             {actionData.error}
           </p>
         )}
 
+        {/* Display questions in an ol */}
         {actionData?.questions && actionData.questions.length > 0 && (
           <section className='mt-6'>
             <h2 className='text-lg font-semibold text-gray-900'>
