@@ -112,7 +112,6 @@ export default async function mistralChat(
       .slice(0, 3);
   }
 
-  // Ensure we always return an array of 3 questions, even if parsing fails
   return {
     jobTitle: normalizedJobTitle,
     questions:

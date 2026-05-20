@@ -16,6 +16,7 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+// Handle form submission, call the Mistral API, and return the result or error message
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   let rawJobTitle = String(formData.get('jobTitle') ?? '').trim();
